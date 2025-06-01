@@ -4,6 +4,7 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import box
 import math
+import tqdm
 
 
 CUR_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +32,7 @@ def import_vector_file(file_path: str) -> gpd.GeoDataFrame:
     """
     try:
         gdf = gpd.read_file(file_path)
+        print(f"Successfully read vector file: {file_path}")
         return gdf
     except Exception as e:
         raise ValueError(f"Error reading vector file: {e}")
@@ -52,8 +54,10 @@ def get_tile_coords_df(
         zoom_level: int = None
 ) -> pd.DataFrame:
     """
-    指定された緯度経度範囲とズームレベルに基づいて、日本をカバーするタイル座標のDataFrameを生成する。
+    指定された緯度経度範囲とズームレベルに基づいて、importしたベクターデータの範囲をカバーするタイル座標のDataFrameを生成する。
     """
+    print(f"Generating tile coordinates for zoom level {zoom_level}...")
+
     x_nw, y_nw = deg2num(lonlat_dict["max_lat"], lonlat_dict["min_lon"], zoom_level)  # 左上
     x_se, y_se = deg2num(lonlat_dict["min_lat"], lonlat_dict["max_lon"], zoom_level)  # 右下
     x_sw, y_sw = deg2num(lonlat_dict["min_lat"], lonlat_dict["min_lon"], zoom_level)  # 左下
@@ -72,6 +76,7 @@ def get_tile_coords_df(
             tile_coords.append({"x": x, "y": y, "z": zoom_level})
     
     tiles_df = pd.DataFrame(tile_coords)
+    print(f"Generated {len(tiles_df)} tiles for zoom level {zoom_level}.")
     return tiles_df
 
 def single_num2deg(xt: int, yt: int, zm: int) -> tuple[float, float]:
@@ -102,12 +107,13 @@ def create_geodatafrane_from_tiles(tiles_df: pd.DataFrame) -> gpd.GeoDataFrame:
     各タイルはポリゴンジオメトリとして表現される.
     """
     geometries = []
-    for idx, row in tiles_df.iterrows():
+    for idx, row in tqdm(tiles_df.iterrows(), total=len(tiles_df), desc="Creating geometries"):
         x, y, z = int(row['x']), int(row['y']), int(row['z'])
         bounds = num_to_tile_bounds(x, y, z)
         geometries.append(box(*bounds))
 
     gdf = gpd.GeoDataFrame(tiles_df, geometry=geometries, crs="EPSG:4326")
+    print(f"Created GeoDataFrame with {len(gdf)} tiles.")
     return gdf
 
 def clip_tiles_with_vector(gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -117,6 +123,7 @@ def clip_tiles_with_vector(gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame) -
     if gdf.empty or tiles_gdf.empty:
         raise ValueError("One of the GeoDataFrames is empty.")
     
+    print(f"Clipping {len(tiles_gdf)} tiles with vector geometry...")
     clipped_gdf = gpd.overlay(tiles_gdf, gdf, how="intersection")
     return clipped_gdf
 
@@ -134,6 +141,7 @@ def main(read_gdf: gpd.GeoDataFrame, zoom_level: int = None, output_dir: str = N
     else:
         output_file = os.path.join(CUR_DIR, output_filename)
     clipped_tiles_gdf.to_file(output_file, driver="FlatGeobuf", engine="pyogrio", encoding="utf-8")
+    print(f"Clipped tiles file saved to: {output_file}")
 
 
 if __name__ == "__main__":
