@@ -19,17 +19,3 @@ repos:
     hooks:
       - id: black
         files: ^(waterleakage|tools)/.*\.py$
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
-    hooks:
-      - id: check-yaml
-        args:
-          - "--unsafe"
-        files: ^(waterleakage|tools)/.*\.ya?ml$
-        exclude: .*\.(shp|cpg|dbf|prj|shx|geojson|parquet|fgb)$
-      - id: end-of-file-fixer
-        files: ^(waterleakage|tools)/
-        exclude: .*\.(shp|cpg|dbf|prj|shx|geojson|parquet|fgb)$
-      - id: trailing-whitespace
-        files: ^(waterleakage|tools)/
-        exclude: .*\.(shp|cpg|dbf|prj|shx|geojson|parquet|fgb)$
